@@ -1,26 +1,23 @@
-# ---------------------------------------------------------------------------- #
-#                                                                              #
-# 	Module:       main.py                                                      #
-# 	Author:       Ryan Mejeur                                                  #
-# 	Created:      6/16/2025, 12:21:48 PM                                       #
-# 	Description:  V5 project                                                   #
-#                                                                              #
-# ---------------------------------------------------------------------------- #
-
 # Library imports
 from vex import *                                                               # Imports everything from the vex library for the robot to use
-import math
+import math                                                                     # Imports the math library for various mathmatical features
 
 
 class ClawStates():
-    OPEN = 'open'
-    CLOSED = 'closed'
+    '''
+    Used for simply controlling the claw.
+    '''
+    OPEN = 'open'                                                               # Defines the open state
+    CLOSED = 'closed'                                                           # Defines the closed state
 
 class ArmHeights(int):
-    FLOOR = 10
-    LEVEL_1 = 255
-    LEVEL_2 = 445
-    LEVEL_3 = 690
+    '''
+    Used for the arm heights.
+    '''
+    FLOOR = 10                                                                  # Floor level
+    LEVEL_1 = 255                                                               # One box
+    LEVEL_2 = 445                                                               # two boxes
+    LEVEL_3 = 690                                                               # three boxes
 
 #region Subsystems
 
@@ -165,92 +162,92 @@ class VisionSubsystem():
         Parameters:
             dSubsystem: The drive subsystem
 
-            brain: 
+            brain: The Vex V5 brain
         '''
-        self.tags = [
-            Tagdesc(0),
-            Tagdesc(1),
-            Tagdesc(2),
-            Tagdesc(3),
-            Tagdesc(4),
-            Tagdesc(5)]
+        self.apriltags = [                                                      # Defines all of the AprilTags used for the towers
+            Tagdesc(0),                                                         #  | Tag 0
+            Tagdesc(1),                                                         #  | Tag 1
+            Tagdesc(2),                                                         #  | Tag 2
+            Tagdesc(3),                                                         #  | Tag 3
+        ]                                                                       # Ends the list
         
-        self.colors = [
-            Colordesc(1, 71, 200, 200, 20, 0.4)
-        ]
+        self.colors = [                                                         # Defines the colors to detect
+            Colordesc(1, 71, 200, 200, 20, 0.4)                                 #  | The cyan color of the paper height tags (May require updating after changing lighting)
+        ]                                                                       # Ends the list
 
-        self.visionSensor = AiVision(Ports.PORT10, self.colors[0])
+        self.aiVisionSensor = AiVision(Ports.PORT10, self.colors[0])            # Initializes the AI Vision Sensor
+        self.aiVisionSensor.start_awb()                                         # Starts auto white balance
+        self.aiVisionSensor.tag_detection(True)                                 # Enables AprilTag detection
+        self.aiVisionSensor.model_detection(False)                              # Ensures AI model detection is disabled
+        self.aiVisionSensor.color_detection(True, True)                         # Enables color detection
 
-        self.visionSensor.start_awb()
-        self.visionSensor.tag_detection(True)
-        self.visionSensor.model_detection(False)
-        self.visionSensor.color_detection(True, True)
+        self.tagSnapshots = [                                                   # Defines the list of tag snapshots
+            self.aiVisionSensor.take_snapshot(self.apriltags[0]),               #  | Snapshot of tag 0
+            self.aiVisionSensor.take_snapshot(self.apriltags[1]),               #  | Snapshot of tag 1
+            self.aiVisionSensor.take_snapshot(self.apriltags[2]),               #  | Snapshot of tag 2
+            self.aiVisionSensor.take_snapshot(self.apriltags[3]),               #  | Snapshot of tag 3
+        ]                                                                       # Ends the list
 
-        self.tagSnapshots = [
-            self.visionSensor.take_snapshot(self.tags[0]),
-            self.visionSensor.take_snapshot(self.tags[1]),
-            self.visionSensor.take_snapshot(self.tags[2]),
-            self.visionSensor.take_snapshot(self.tags[3]),
-            self.visionSensor.take_snapshot(self.tags[4]),
-            self.visionSensor.take_snapshot(self.tags[5])
-        ]
+        self.colorSnapshots = [                                                 # Defines the list of color snapshots
+            self.aiVisionSensor.take_snapshot(self.colors[0])                   #  | Snapshot of the cyan height tags
+        ]                                                                       # Ends the list
 
-        self.colorSnapshots = [
-            self.visionSensor.take_snapshot(self.colors[0])
-        ]
+        self.driveSubsystem = dSubsystem                                        # Makes the drive subsystem passed to this object available to the rest of the object
+        self.brain = brain                                                      # Makes the brain varaible passed to this object available to the rest of the object
 
-        self.driveSubsystem = dSubsystem
-        self.brain = brain
+        self.scanning = True                                                    # Enables scanning by default
+        self.tagHeadings = [                                                    # Creates a list of tag headings
+            0.0,                                                                #  |  
+            0.0,                                                                #   > Sets all headings to zero to update later
+            0.0,                                                                #  |
+            0.0                                                                 #  |
+        ]                                                                       # Ends the list
 
-        self.scanning = True
-        self.tagHeadings = [
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0
-        ]
-        self.tagHeadingLists = [
-            [],
-            [],
-            [],
-            [],
-            [],
-            []
-        ]
+        self.tagHeadingLists = [                                                # Defines the lists used to create the above headings
+            [],                                                                 #  |
+            [],                                                                 #   > Create blank lists to be filled later
+            [],                                                                 #  |
+            []                                                                  #  |
+        ]                                                                       # Ends the list
 
     def periodic(self):
-        if self.visionSensor.installed():
-            for i in range(len(self.tagSnapshots)):
-                self.tagSnapshots[i] = self.visionSensor.take_snapshot(self.tags[i])
-                
-                if self.scanning:
-                    for object in self.tagSnapshots[i]:
-                        if object.id is not None and 150 < object.centerX < 170:
-                            self.tagHeadingLists[i].append(self.driveSubsystem.heading-10)
-            
-            for i in range(len(self.colorSnapshots)):
-                self.colorSnapshots[i] = self.visionSensor.take_snapshot(self.colors[i])
+        '''
+        Runs every twenty milliseconds.
 
-            self.towerHeight = len(self.colorSnapshots[0])
+        Used for updating the tag snapshots, scanning, and getting the height of box towers
+        '''
+        if self.aiVisionSensor.installed():                                                     # If the AI Vision Sensor is connected, run below
+            for i in range(len(self.tagSnapshots)):                                             # Loop for the length of the tagSnapshots list
+                self.tagSnapshots[i] = self.aiVisionSensor.take_snapshot(self.apriltags[i])     # Update each snapshot for its respective tag
+                
+                if self.scanning:                                                               # If scanning for tag headings, run following
+                    for object in self.tagSnapshots[i]:                                         # Loop for each detected object in the snapshot
+                        if object.id is not None and 150 < object.centerX < 170:                # If a tag is detected and near the center of the camera
+                            self.tagHeadingLists[i].append(self.driveSubsystem.heading-10)      # Add the current robot heading to the respective tag heading list
+                                                                                                                            #  /\ (with a little correction)
+            
+            for i in range(len(self.colorSnapshots)):                                           # Loop for each color that need to be detected
+                self.colorSnapshots[i] = self.aiVisionSensor.take_snapshot(self.colors[i])      # Take a snapshot of the current color
+
+            self.towerHeight = len(self.colorSnapshots[0])                                      # count the number of height tags detected and set the tower height
     
     def averageHeadings(self):
-        for i in range(6):
-            self.tagHeadings[i] = 0
-            for data in self.tagHeadingLists[i]:
-                self.tagHeadings[i] += data
+        '''
+        Averages the headings stored in tagHeadingsLists into the actual tag headings
+        '''
+        for i in range(len(self.tagHeadingLists)):                              # Loop through the lists of tag headings
+            self.tagHeadings[i] = 0                                             # Set the tag heading to zero
+            for data in self.tagHeadingLists[i]:                                # Loop through data in the current heading list
+                self.tagHeadings[i] += data                                     # Add the data to the heading
             if len(self.tagHeadingLists[i]) > 0:
                 self.tagHeadings[i] /= len(self.tagHeadingLists[i])
 
-        self.tagHeadingLists = [
-            [],                                                                 # 
-            [],                                                                 # 
-            [],                                                                 # 
-            [],                                                                 # 
-            [],                                                                 # 
-            []
-        ]
+        self.tagHeadingLists = [                                                # Reset the tag heading lists back to zero
+            [],                                                                 #  |
+            [],                                                                 #  |
+            [],                                                                 #  |
+            []                                                                  #  |
+        ]                                                                       # End of list
 
 class ClawSubsystem():
     def __init__(self, brain: Brain):
