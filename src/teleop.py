@@ -51,9 +51,9 @@ class DriveSubsystem():
         self.targetHeading = 0                                                  # Defines the targetHeading varaible
         self.heading = 0.0                                                      # Defines the heading variable
 
-        self.turnSpeed = 0                                                      # Sets the turnSpeed variable to zero
-        self.yMoveSpeed = 0                                                     # Sets the yMoveSpeed variable to zero
-        self.xMoveSpeed = 0                                                     # Sets the xMoveSpeed variable to zero
+        self.turnSpeed = 0                                                      # 
+        self.yMoveSpeed = 0                                                     # 
+        self.xMoveSpeed = 0                                                     # 
 
     def periodic(self):
         '''
@@ -542,6 +542,9 @@ visionSubsystem = VisionSubsystem(driveSubsystem, brain)                        
 clawSubsystem = ClawSubsystem(brain)                                            # defines the claw subsystem
 
 emergencyStopEvent = controller.buttonLeft.pressed(brain.program_stop)          # ends the program when you hit the left arrow on the controller
+controller.buttonR1.pressed(clawSubsystem.raiseArm)
+controller.buttonR2.pressed(clawSubsystem.lowerArm)
+controller.buttonA.pressed(clawSubsystem.toggleClaw)
 
 
 def periodicThread():
@@ -554,24 +557,10 @@ def periodicThread():
         clawSubsystem.periodic()                                                # runs the claw subsystem's periodic function
         wait(20, MSEC)                                                          # delays the thread twenty milliseconds so it doesn't take up all of the resources
 
+wait(2, SECONDS)
 
-if __name__ == "__main__": 
-    wait(5, SECONDS)                                                            # Delays the program two seconds to allow the gyro to fully calibrate
 
-    periodic = Thread(periodicThread)                                           # Initializes the periodic thread so it will run seperately from the main code
-
-    ScanForTags(False, driveSubsystem, visionSubsystem)                         # Scans for tags without turning to zero first
-
-    CollectFromStack(0, driveSubsystem, visionSubsystem, clawSubsystem)         # Collects from the stack with AprilTag 0
-
-    ScanForTags(True, driveSubsystem, visionSubsystem)                          # Scans for tags at the new location, turning to zero first
-
-    DropInStack(1, driveSubsystem, visionSubsystem, clawSubsystem)              # Drops the ball in the stack with AprilTag 1
-
-    ScanForTags(True, driveSubsystem, visionSubsystem)                          # Scans for tags at the new location, turning to zero first
-
-    CollectFromStack(2, driveSubsystem, visionSubsystem, clawSubsystem)         # Collects from the stack with AprilTag 2
-
-    ScanForTags(True, driveSubsystem, visionSubsystem)                          # Scans for tags at the new location, turning to zero first
-
-    DropInStack(3, driveSubsystem, visionSubsystem, clawSubsystem)              # Drops the ball in the stack with AprilTag 3
+while True:
+    driveSubsystem.driveFieldOriented(controller.axis3.position(), controller.axis4.position())
+    driveSubsystem.turn(controller.axis1.position())
+    wait(20, MSEC)
